@@ -1,6 +1,11 @@
 import pyaudio
 import wave
 
+from ctypes import *
+from contextlib import contextmanager
+
+ERR_HAND = CFUNCTYPE(None, c_char_p, c_int, c_char_p, c_int, c_char_p)
+
 form_1 = pyaudio.paInt16 # 16-bit resolution
 chans = 1 # 1 channel
 samp_rate = 44100 # 44.1kHz sampling rate
@@ -9,7 +14,21 @@ record_secs = 3 # seconds to record
 dev_index = 2 # device index found by p.get_device_info_by_index(ii)
 wav_output_filename = 'test1.wav' # name of .wav file
 
-audio = pyaudio.PyAudio() # create pyaudio instantiation
+
+def py_err_handler(filename, line, function, err, fmt):
+    pass
+
+c_err_handler = ERR_HAND(py_err_handler)
+
+@contextmanager
+def noalsaerr():
+    asound = cdll.LoadLibrary('libasound.so')
+    asound.snd_lib_error_set_handler(c_err_handler)
+    yield
+    asound.snd_lib_error_set_handler(None)
+
+with noalsaerr():
+    audio = pyaudio.PyAudio() # create pyaudio instantiation
 
 # create pyaudio stream
 stream = audio.open(format = form_1,rate = samp_rate,channels = chans, \

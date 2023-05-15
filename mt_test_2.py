@@ -2,20 +2,40 @@ import pyaudio
 import wave
 import threading
 #import multiprocessing
+from ctypes import *
+from contextlib import contextmanager
+
+ERR_HAND = CFUNCTYPE(None, c_char_p, c_int, c_char_p, c_int, c_char_p)
 
 FORMAT = pyaudio.paInt16 # 16-bit resolution
 CHANNELS = 1 # 1 channel
 RATE = 44100 # 44.1kHz sampling rate
 CHUNK = 4096 # 2^12 samples for buffer
-DUR = 5 # seconds to record
+DUR = 1 # seconds to record
+
+audio = ""
 
 f1=[]
 f2=[]
+def py_err_handler(filename, line, function, err, fmt):
+    pass
 
+c_err_handler = ERR_HAND(py_err_handler)
+
+@contextmanager
+def noalsaerr():
+    asound = cdll.LoadLibrary('libasound.so')
+    asound.snd_lib_error_set_handler(c_err_handler)
+    yield
+    asound.snd_lib_error_set_handler(None)
+
+# create pyaudio instantiation
+    
 def rec_audio(n, index):
     print("thread "+str(n)+"\n" )
-
-    audio = pyaudio.PyAudio() # create pyaudio instantiation
+    with noalsaerr():
+        audio = pyaudio.PyAudio()
+        
     dev_index = index # device index found by p.get_device_info_by_index(ii)
     wav_output_filename = 'test' + str(n) + '.wav' # name of .wav file
     
@@ -44,7 +64,6 @@ def rec_audio(n, index):
     audio.terminate()
 
 
-
 def save_file(n):
     # save the audio frames as .wav file
     wav_output_filename = 'test' + str(n) + '.wav' # name of .wav file
@@ -66,8 +85,9 @@ if __name__ =="__main__":
     t2.start()
 
     t1.join()
-    save_file(1)
     t2.join()
+    print("heh")
+    save_file(1)
     save_file(2)
 
     #p = multiprocessing.Process(target=rec_audio, args=(1,2,))
